@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trang Đánh Giá</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        .card { margin-bottom: 20px; }
+        .category-badge {
+            font-size: 0.8em;
+            padding: 0.3em 0.6em;
+            border-radius: 10px;
+            margin-left: 10px;
+        }
+        .category-Năng-lực { background-color: #e3f2fd; }
+        .category-Thái-độ { background-color: #fff3e0; }
+        .category-Hiệu-suất { background-color: #e8f5e9; }
+        .category-Kỹ-năng-mềm { background-color: #f3e5f5; }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="card p-4 shadow-lg">
+            <h2 id="evaluationTitle" class="text-center mb-4"></h2>
+            <p id="templateDescription" class="text-center text-muted mb-2"></p>
+            <p id="departmentName" class="text-center text-muted"></p>
+            
+            <div id="employeeTables"></div>
+            
+            <nav>
+                <ul class="pagination justify-content-center mt-4" id="pagination"></ul>
+            </nav>
+            
+            <div class="text-center mt-4">
+                <a href="Create_review.html" class="btn btn-secondary">Quay về</a>
+                <button class="btn btn-primary" id="saveBtn" disabled>Lưu đánh giá</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let templateData = null;
+        let employeesData = [];
+        const itemsPerPage = 5;
+        let currentPage = 1;
+        let isDataSaved = true;
+
+        async function loadTemplate(templateId) {
+            try {
+                const response = await fetch(`http://localhost:8080/api/templates/${templateId}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) throw new Error('Failed to load template');
+
+                const result = await response.json();
+                if (result.success && result.data) {
+                    templateData = result.data;
+                    document.getElementById('evaluationTitle').textContent = templateData.templateName;
+                    document.getElementById('templateDescription').textContent = templateData.description;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Không thể tải thông tin mẫu đánh giá');
+            }
+        }
+
+        async function loadEmployees(departmentId) {
+            try {
+                const response = await fetch(`http://localhost:8080/api/users/departments/${departmentId}`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    credentials: 'include'
+                });
+
+                if (!response.ok) throw new Error('Failed to load employees');
+
+                const result = await response.json();
+                if (result.success && result.data) {
+                    employeesData = result.data;
+                    document.getElementById('departmentName').textContent = 
+                        `Phòng ban: ${employeesData[0]?.department?.departmentName || 'Không xác định'}`;
+                    displayEmployees(1);
+                    setupPagination();
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Không thể tải danh sách nhân viên');
+            }
+        }
+
+        function displayEmployees(page) {
+            const startIndex = (page - 1) * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const visibleEmployees = employeesData.slice(startIndex, endIndex);
+
+            document.getElementById("employeeTables").innerHTML = visibleEmployees
+                .map(employee => `
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Nhân viên: ${employee.fullName}</h5>
+                            <small class="text-muted">${employee.email}</small>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Tiêu chí</th>
+                                        <th>Mô tả</th>
+                                        <th width="150">Đánh giá (0-10)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${templateData.criteria.map(criterion => `
+                                        <tr>
+                                            <td>
+                                                ${criterion.criteria.criteriaName}
+                                                <span class="category-badge category-${criterion.criteria.category}">
+                                                    ${criterion.criteria.category}
+                                                </span>
+                                            </td>
+                                            <td><small>${criterion.criteria.description}</small></td>
+                                            <td>
+                                                <select class="form-select score" 
+                                                    data-emp-id="${employee.userId}"
+                                                    data-criteria-id="${criterion.criteria.criteriaId}"
+                                                    onchange="handleScoreChange(${employee.userId})">
+                                                    ${Array.from({ length: criterion.maxScore + 1 }, (_, i) => 
+                                                        `<option value="${i}">${i}</option>`
+                                                    ).join('')}
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                    <tr class="table-info">
+                                        <td colspan="2"><strong>Điểm trung bình</strong></td>
+                                        <td>
+                                            <input type="text" class="form-control average-score" 
+                                                id="average-${employee.userId}" readonly>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td colspan="2"><strong>Nhận xét</strong></td>
+                                        <td>
+                                            <textarea class="form-control" rows="2" 
+                                                id="comment-${employee.userId}"></textarea>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `).join('');
+        }
+
+        function handleScoreChange(employeeId) {
+            calculateAverage(employeeId);
+            isDataSaved = false;
+            document.getElementById("saveBtn").disabled = false;
+        }
+
+        function calculateAverage(employeeId) {
+            const scores = document.querySelectorAll(`.score[data-emp-id='${employeeId}']`);
+            let total = 0;
+            scores.forEach(select => total += parseInt(select.value));
+            const avg = total / scores.length;
+            document.getElementById(`average-${employeeId}`).value = avg.toFixed(2);
+        }
+
+        async function saveAssessments() {
+            try {
+                // Get assessment period from template name
+                const assessmentPeriod = templateData.templateName.split(' ').pop() || "Q1-2025";
+                
+                const savePromises = employeesData.map(async (employee) => {
+                    const scores = document.querySelectorAll(`.score[data-emp-id='${employee.userId}']`);
+                    const averageScore = document.getElementById(`average-${employee.userId}`).value;
+                    const comment = document.getElementById(`comment-${employee.userId}`).value;
+                    
+                    // Prepare details array
+                    const details = [];
+                    scores.forEach(select => {
+                        details.push({
+                            criteriaId: parseInt(select.getAttribute('data-criteria-id')),
+                            score: parseInt(select.value),
+                            comments: ""
+                        });
+                    });
+                    
+                    // Prepare payload
+                    const payload = {
+                        assessedUserId: employee.userId,
+                        assessorUserId: 1, // Assuming current user ID is 1
+                        templateId: templateData.templateId,
+                        assessmentPeriod: assessmentPeriod,
+                        totalScore: parseFloat(averageScore),
+                        comment: comment,
+                        details: details
+                    };
+                    
+                    // Submit to API
+                    const response = await fetch('http://localhost:8080/api/assessments/submit', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(payload),
+                        credentials: 'include'
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.message || 'Failed to save assessment');
+                    }
+                    
+                    return await response.json();
+                });
+                
+                const results = await Promise.all(savePromises);
+                
+                // Check all results
+                const allSuccess = results.every(result => result.success);
+                
+                if (allSuccess) {
+                    alert('Tất cả đánh giá đã được lưu thành công!');
+                    isDataSaved = true;
+                    document.getElementById("saveBtn").disabled = true;
+                } else {
+                    alert('Có lỗi xảy ra khi lưu một số đánh giá.');
+                }
+            } catch (error) {
+                console.error('Error saving assessments:', error);
+                alert(`Lỗi: ${error.message}`);
+            }
+        }
+
+        function setupPagination() {
+            const pageCount = Math.ceil(employeesData.length / itemsPerPage);
+            document.getElementById("pagination").innerHTML = `
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">Trước</a>
+                </li>
+                ${Array.from({ length: pageCount }, (_, i) => `
+                    <li class="page-item ${i + 1 === currentPage ? 'active' : ''}">
+                        <a class="page-link" href="#" onclick="changePage(${i + 1})">${i + 1}</a>
+                    </li>
+                `).join('')}
+                <li class="page-item ${currentPage === pageCount ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">Sau</a>
+                </li>
+            `;
+        }
+
+        function changePage(page) {
+            if (page < 1 || page > Math.ceil(employeesData.length / itemsPerPage)) return;
+            currentPage = page;
+            displayEmployees(page);
+            setupPagination();
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', async function() {
+            const params = new URLSearchParams(window.location.search);
+            const templateId = params.get('templateId');
+            const departmentId = params.get('departmentId');
+
+            if (!templateId || !departmentId) {
+                alert('Thiếu thông tin template hoặc phòng ban');
+                window.location.href = 'Create_review.html';
+                return;
+            }
+
+            await loadTemplate(templateId);
+            await loadEmployees(departmentId);
+        });
+
+        // Handle page leave
+        window.addEventListener('beforeunload', function(event) {
+            if (!isDataSaved) {
+                event.preventDefault();
+                event.returnValue = 'Bạn có chắc chắn muốn rời khỏi trang mà không lưu đánh giá?';
+            }
+        });
+
+        // Add event listener to save button
+        document.getElementById('saveBtn').addEventListener('click', saveAssessments);
+    </script>
+</body>
+</html>

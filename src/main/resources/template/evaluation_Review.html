@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Danh Sách Mẫu Đánh Giá</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css"
+    />
+    <style>
+      tr:hover {
+        background-color: #f1f1f1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container mt-4">
+      <h2 class="mb-4">Danh Sách Mẫu Đánh Giá</h2>
+
+      <div class="mb-3">
+        <button class="btn btn-secondary" onclick="goBack()">
+          <i class="fas fa-arrow-left"></i> Quay về
+        </button>
+        <button class="btn btn-success" onclick="addTemplate()">
+          <i class="fas fa-plus"></i> Thêm Mẫu
+        </button>
+      </div>
+
+      <input
+        type="text"
+        id="searchInput"
+        class="form-control mb-3"
+        placeholder="Tìm kiếm theo tên hoặc ngày tạo..."
+        onkeyup="searchTemplate()"
+      />
+
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>Tên Mẫu</th>
+            <th>Mô tả</th>
+            <th>Thời Gian Tạo</th>
+            <th>Hành động</th>
+          </tr>
+        </thead>
+        <tbody id="templateTable"></tbody>
+      </table>
+    </div>
+
+    <script>
+      // Format date function
+      function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+
+      // Load templates function
+      async function loadTemplates() {
+        try {
+          const response = await fetch('http://localhost:8080/api/templates', {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to load templates');
+          }
+
+          const result = await response.json();
+          if (result.success && result.data) {
+            const templateTable = document.getElementById('templateTable');
+            templateTable.innerHTML = ''; // Clear existing content
+
+            result.data.forEach(template => {
+              const row = `
+                <tr>
+                  <td>${template.templateName}</td>
+                  <td>${template.description || 'Không có mô tả'}</td>
+                  <td>${formatDate(template.createdAt)}</td>
+                  <td>
+                    <a href="#" class="btn btn-primary btn-sm" onclick="viewTemplate(${template.templateId})">
+                      <i class="fas fa-eye"></i> Xem
+                    </a>
+                    <button class="btn btn-danger btn-sm" onclick="confirmDelete(${template.templateId})">
+                      <i class="fas fa-trash"></i> Xóa
+                    </button>
+                  </td>
+                </tr>
+              `;
+              templateTable.innerHTML += row;
+            });
+          }
+        } catch (error) {
+          console.error('Error loading templates:', error);
+          alert('Không thể tải danh sách mẫu đánh giá. Vui lòng thử lại sau.');
+        }
+      }
+
+      // Update search function to work with loaded data
+      function searchTemplate() {
+        const input = document.getElementById("searchInput").value.toLowerCase();
+        const rows = document.querySelectorAll("#templateTable tr");
+
+        rows.forEach(row => {
+          const name = row.cells[0].innerText.toLowerCase();
+          const description = row.cells[1].innerText.toLowerCase();
+          const date = row.cells[2].innerText.toLowerCase();
+          row.style.display = 
+            name.includes(input) || 
+            description.includes(input) || 
+            date.includes(input) ? "" : "none";
+        });
+      }
+
+      // Update delete function to use API
+      async function confirmDelete(templateId) {
+        if (confirm("Bạn có chắc chắn muốn xóa mẫu này?")) {
+          try {
+            const response = await fetch(`http://localhost:8080/api/templates/${templateId}`, {
+              method: 'DELETE',
+              headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+              },
+              credentials: 'include'
+            });
+
+            if (!response.ok) {
+              throw new Error('Failed to delete template');
+            }
+
+            await loadTemplates(); // Reload the list after deletion
+            alert('Xóa mẫu đánh giá thành công!');
+          } catch (error) {
+            console.error('Error deleting template:', error);
+            alert('Không thể xóa mẫu đánh giá. Vui lòng thử lại sau.');
+          }
+        }
+      }
+
+      // Update view function
+      function viewTemplate(templateId) {
+        window.location.href = `view_Evaluation.html?templateId=${templateId}`;
+      }
+
+      // Load templates when page loads
+      document.addEventListener('DOMContentLoaded', function() {
+        loadTemplates();
+      });
+
+      // Keep existing navigation functions
+      function addTemplate() {
+        window.location.href = "Evaluation_Form.html";
+      }
+
+      function goBack() {
+        window.location.href = "index.html";
+      }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>

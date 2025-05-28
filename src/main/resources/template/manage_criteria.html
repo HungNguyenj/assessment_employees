@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quản lý Tiêu chí Đánh giá</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .card {
+            border-radius: 15px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+        }
+        .btn-action {
+            margin-right: 5px;
+        }
+        .criteria-item {
+            border-left: 4px solid transparent;
+            transition: all 0.3s;
+        }
+        .criteria-item:hover {
+            background-color: #f1f1f1;
+            border-left-color: #0d6efd;
+        }
+        .category-tag {
+            font-size: 12px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background-color: #e9ecef;
+        }
+        .category-Năng\ lực {
+            background-color: #cff4fc;
+            color: #055160;
+        }
+        .category-Thái\ độ {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+        .category-Hiệu\ suất {
+            background-color: #fff3cd;
+            color: #664d03;
+        }
+        .category-Đóng\ góp {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #86b7fe;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Đang tải...</span>
+        </div>
+    </div>
+
+    <div class="container mt-5">
+        <!-- Header Card -->
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h4><i class="bi bi-list-check"></i> Quản lý Tiêu chí Đánh giá</h4>
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCriteriaModal">
+                        <i class="bi bi-plus-circle"></i> Thêm Tiêu chí
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Search and Filters -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="searchInput" placeholder="Tìm kiếm tiêu chí...">
+                            <button class="btn btn-outline-secondary" type="button" id="searchButton">
+                                <i class="bi bi-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="categoryFilter">
+                            <option value="">-- Tất cả danh mục --</option>
+                            <option value="Năng lực">Năng lực</option>
+                            <option value="Thái độ">Thái độ</option>
+                            <option value="Hiệu suất">Hiệu suất</option>
+                            <option value="Đóng góp">Đóng góp</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select class="form-select" id="statusFilter">
+                            <option value="">-- Tất cả trạng thái --</option>
+                            <option value="true">Đang hoạt động</option>
+                            <option value="false">Không hoạt động</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Criteria List -->
+                <div id="criteriaList" class="list-group">
+                    <!-- Criteria items will be loaded here -->
+                </div>
+
+                <!-- Pagination -->
+                <nav aria-label="Page navigation" class="mt-4">
+                    <ul class="pagination justify-content-center" id="pagination">
+                        <!-- Pagination will be generated dynamically -->
+                    </ul>
+                </nav>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="text-center mt-3 mb-5">
+            <button class="btn btn-secondary px-4" onclick="window.location.href='index.html'">
+                <i class="bi bi-arrow-left"></i> Quay Lại
+            </button>
+        </div>
+    </div>
+
+    <!-- Add Criteria Modal -->
+    <div class="modal fade" id="addCriteriaModal" tabindex="-1" aria-labelledby="addCriteriaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title" id="addCriteriaModalLabel">Thêm Tiêu chí Đánh giá</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addCriteriaForm">
+                        <div class="mb-3">
+                            <label for="criteriaName" class="form-label">Tên tiêu chí <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="criteriaName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Danh mục <span class="text-danger">*</span></label>
+                            <select class="form-select" id="category" required>
+                                <option value="">-- Chọn danh mục --</option>
+                                <option value="Năng lực">Năng lực</option>
+                                <option value="Thái độ">Thái độ</option>
+                                <option value="Hiệu suất">Hiệu suất</option>
+                                <option value="Đóng góp">Đóng góp</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Mô tả <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="description" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="defaultMaxScore" class="form-label">Điểm tối đa <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="defaultMaxScore" min="1" max="10" value="10" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-success" id="saveCriteriaBtn">Lưu tiêu chí</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Criteria Modal -->
+    <div class="modal fade" id="editCriteriaModal" tabindex="-1" aria-labelledby="editCriteriaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="editCriteriaModalLabel">Chỉnh sửa Tiêu chí Đánh giá</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editCriteriaForm">
+                        <input type="hidden" id="editCriteriaId">
+                        <div class="mb-3">
+                            <label for="editCriteriaName" class="form-label">Tên tiêu chí <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="editCriteriaName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editCategory" class="form-label">Danh mục <span class="text-danger">*</span></label>
+                            <select class="form-select" id="editCategory" required>
+                                <option value="">-- Chọn danh mục --</option>
+                                <option value="Năng lực">Năng lực</option>
+                                <option value="Thái độ">Thái độ</option>
+                                <option value="Hiệu suất">Hiệu suất</option>
+                                <option value="Đóng góp">Đóng góp</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDescription" class="form-label">Mô tả <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="editDescription" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDefaultMaxScore" class="form-label">Điểm tối đa <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="editDefaultMaxScore" min="1" max="10" required>
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="editIsActive" checked>
+                                <label class="form-check-label" for="editIsActive">Đang hoạt động</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" id="updateCriteriaBtn">Cập nhật</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="confirmDeleteModalLabel">Xác nhận xóa</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc chắn muốn xóa tiêu chí này không? Hành động này không thể hoàn tác.</p>
+                    <p><strong>Lưu ý:</strong> Việc xóa tiêu chí có thể ảnh hưởng đến các đánh giá đã sử dụng tiêu chí này.</p>
+                    <p>Tiêu chí: <span id="deleteCriteriaName" class="fw-bold"></span></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Xóa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Criteria Modal -->
+    <div class="modal fade" id="viewCriteriaModal" tabindex="-1" aria-labelledby="viewCriteriaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="viewCriteriaModalLabel">Chi tiết Tiêu chí Đánh giá</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">ID Tiêu chí:</div>
+                        <div class="col-md-9" id="viewCriteriaId"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Tên tiêu chí:</div>
+                        <div class="col-md-9" id="viewCriteriaName"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Danh mục:</div>
+                        <div class="col-md-9" id="viewCategory"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Mô tả:</div>
+                        <div class="col-md-9" id="viewDescription"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Điểm tối đa:</div>
+                        <div class="col-md-9" id="viewDefaultMaxScore"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Trạng thái:</div>
+                        <div class="col-md-9" id="viewIsActive"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Ngày tạo:</div>
+                        <div class="col-md-9" id="viewCreatedAt"></div>
+                    </div>
+                    <div class="row mb-2">
+                        <div class="col-md-3 fw-bold">Cập nhật lần cuối:</div>
+                        <div class="col-md-9" id="viewUpdatedAt"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary" id="editFromViewBtn">Chỉnh sửa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Global variables
+        let allCriteria = [];
+        let currentCriteria = null;
+        let criteriaToDelete = null;
+        let currentPage = 1;
+        const itemsPerPage = 1000;
+        
+        // DOM Element References
+        const addCriteriaModal = new bootstrap.Modal(document.getElementById('addCriteriaModal'));
+        const editCriteriaModal = new bootstrap.Modal(document.getElementById('editCriteriaModal'));
+        const confirmDeleteModal = new bootstrap.Modal(document.getElementById('confirmDeleteModal'));
+        const viewCriteriaModal = new bootstrap.Modal(document.getElementById('viewCriteriaModal'));
+        
+        // Initialize the page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load all criteria
+            loadAllCriteria();
+            
+            // Set up event listeners
+            document.getElementById('saveCriteriaBtn').addEventListener('click', saveNewCriteria);
+            document.getElementById('updateCriteriaBtn').addEventListener('click', updateCriteria);
+            document.getElementById('confirmDeleteBtn').addEventListener('click', deleteCriteria);
+            document.getElementById('editFromViewBtn').addEventListener('click', function() {
+                viewCriteriaModal.hide();
+                editCriteriaModal.show();
+            });
+            
+            // Search and filter functionality
+            document.getElementById('searchButton').addEventListener('click', applyFilters);
+            document.getElementById('searchInput').addEventListener('keyup', function(event) {
+                if (event.key === 'Enter') {
+                    applyFilters();
+                }
+            });
+            document.getElementById('categoryFilter').addEventListener('change', applyFilters);
+            document.getElementById('statusFilter').addEventListener('change', applyFilters);
+        });
+        
+        // Format date function
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleString('vi-VN', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // Show/hide loading overlay
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+        
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+        
+        // Load all criteria from API
+        async function loadAllCriteria() {
+            try {
+                showLoading();
+                const response = await fetch('http://localhost:8080/api/criteria', {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load criteria');
+                }
+                
+                const result = await response.json();
+                if (result.success && result.data) {
+                    allCriteria = result.data;
+                    displayCriteria(allCriteria);
+                    setupPagination(allCriteria.length);
+                } else {
+                    showMessage('warning', 'Không thể tải dữ liệu tiêu chí đánh giá');
+                }
+            } catch (error) {
+                console.error('Error loading criteria:', error);
+                showMessage('danger', 'Lỗi khi tải dữ liệu tiêu chí: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Filter and display criteria
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+            
+            let filteredCriteria = allCriteria.filter(criteria => {
+                // Apply search filter
+                const matchesSearch = criteria.criteriaName.toLowerCase().includes(searchTerm) || 
+                                    criteria.description.toLowerCase().includes(searchTerm);
+                
+                // Apply category filter
+                const matchesCategory = !categoryFilter || criteria.category === categoryFilter;
+                
+                // Apply status filter
+                const matchesStatus = statusFilter === '' || 
+                                    (statusFilter === 'true' && criteria.isActive) || 
+                                    (statusFilter === 'false' && !criteria.isActive);
+                
+                return matchesSearch && matchesCategory && matchesStatus;
+            });
+            
+            currentPage = 1; // Reset to first page when filtering
+            displayCriteria(filteredCriteria);
+            setupPagination(filteredCriteria.length);
+        }
+        
+        // Display criteria in the UI
+        function displayCriteria(criteriaList) {
+            const criteriaListElement = document.getElementById('criteriaList');
+            criteriaListElement.innerHTML = '';
+            
+            if (criteriaList.length === 0) {
+                criteriaListElement.innerHTML = `
+                    <div class="alert alert-info text-center">
+                        Không tìm thấy tiêu chí đánh giá nào phù hợp với điều kiện tìm kiếm.
+                    </div>
+                `;
+                return;
+            }
+            
+            // Calculate pagination
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, criteriaList.length);
+            const paginatedCriteria = criteriaList.slice(startIndex, endIndex);
+            
+            paginatedCriteria.forEach(criteria => {
+                const statusClass = criteria.isActive ? 'text-success' : 'text-danger';
+                const statusText = criteria.isActive ? 'Đang hoạt động' : 'Không hoạt động';
+                
+                const criteriaItem = document.createElement('div');
+                criteriaItem.className = 'list-group-item criteria-item';
+                criteriaItem.innerHTML = `
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-1">${criteria.criteriaName}</h5>
+                            <p class="mb-1 text-muted small">${criteria.description.substring(0, 100)}${criteria.description.length > 100 ? '...' : ''}</p>
+                            <div>
+                                <span class="category-tag category-${criteria.category}">${criteria.category}</span>
+                                <small class="ms-2 ${statusClass}"><i class="bi ${criteria.isActive ? 'bi-check-circle' : 'bi-x-circle'}"></i> ${statusText}</small>
+                                <small class="ms-2 text-muted">ID: ${criteria.criteriaId}</small>
+                                <small class="ms-2 text-muted">Điểm tối đa: ${criteria.defaultMaxScore}</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <button class="btn btn-sm btn-info btn-action" onclick="viewCriteria(${criteria.criteriaId})">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-primary btn-action" onclick="openEditModal(${criteria.criteriaId})">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger btn-action" onclick="openDeleteModal(${criteria.criteriaId})">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                criteriaListElement.appendChild(criteriaItem);
+            });
+        }
+        
+        // Set up pagination
+        function setupPagination(totalItems) {
+            const paginationElement = document.getElementById('pagination');
+            paginationElement.innerHTML = '';
+            
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            
+            if (totalPages <= 1) {
+                return; // Don't show pagination if only one page
+            }
+            
+            // Previous button
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;"><i class="bi bi-chevron-left"></i></a>`;
+            paginationElement.appendChild(prevLi);
+            
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>`;
+                paginationElement.appendChild(li);
+            }
+            
+            // Next button
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;"><i class="bi bi-chevron-right"></i></a>`;
+            paginationElement.appendChild(nextLi);
+        }
+        
+        // Change page
+        function changePage(newPage) {
+            currentPage = newPage;
+            applyFilters();
+        }
+        
+        // View criteria details
+        async function viewCriteria(criteriaId) {
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8080/api/criteria/${criteriaId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load criteria details');
+                }
+                
+                const result = await response.json();
+                if (result.success && result.data) {
+                    currentCriteria = result.data;
+                    
+                    // Fill the view modal
+                    document.getElementById('viewCriteriaId').textContent = currentCriteria.criteriaId;
+                    document.getElementById('viewCriteriaName').textContent = currentCriteria.criteriaName;
+                    document.getElementById('viewCategory').textContent = currentCriteria.category;
+                    document.getElementById('viewDescription').textContent = currentCriteria.description;
+                    document.getElementById('viewDefaultMaxScore').textContent = currentCriteria.defaultMaxScore;
+                    document.getElementById('viewIsActive').textContent = currentCriteria.isActive ? 'Đang hoạt động' : 'Không hoạt động';
+                    document.getElementById('viewCreatedAt').textContent = formatDate(currentCriteria.createdAt);
+                    document.getElementById('viewUpdatedAt').textContent = formatDate(currentCriteria.updatedAt);
+                    
+                    // Fill the edit form in case user clicks edit button
+                    document.getElementById('editCriteriaId').value = currentCriteria.criteriaId;
+                    document.getElementById('editCriteriaName').value = currentCriteria.criteriaName;
+                    document.getElementById('editCategory').value = currentCriteria.category;
+                    document.getElementById('editDescription').value = currentCriteria.description;
+                    document.getElementById('editDefaultMaxScore').value = currentCriteria.defaultMaxScore;
+                    document.getElementById('editIsActive').checked = currentCriteria.isActive;
+                    
+                    viewCriteriaModal.show();
+                } else {
+                    showMessage('warning', 'Không thể tải chi tiết tiêu chí');
+                }
+            } catch (error) {
+                console.error('Error loading criteria details:', error);
+                showMessage('danger', 'Lỗi khi tải chi tiết tiêu chí: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Open edit modal
+        async function openEditModal(criteriaId) {
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8080/api/criteria/${criteriaId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load criteria details');
+                }
+                
+                const result = await response.json();
+                if (result.success && result.data) {
+                    currentCriteria = result.data;
+                    
+                    // Fill the edit form
+                    document.getElementById('editCriteriaId').value = currentCriteria.criteriaId;
+                    document.getElementById('editCriteriaName').value = currentCriteria.criteriaName;
+                    document.getElementById('editCategory').value = currentCriteria.category;
+                    document.getElementById('editDescription').value = currentCriteria.description;
+                    document.getElementById('editDefaultMaxScore').value = currentCriteria.defaultMaxScore;
+                    document.getElementById('editIsActive').checked = currentCriteria.isActive;
+                    
+                    editCriteriaModal.show();
+                } else {
+                    showMessage('warning', 'Không thể tải chi tiết tiêu chí');
+                }
+            } catch (error) {
+                console.error('Error loading criteria details:', error);
+                showMessage('danger', 'Lỗi khi tải chi tiết tiêu chí: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Open delete confirmation modal
+        function openDeleteModal(criteriaId) {
+            criteriaToDelete = criteriaId;
+            const criteria = allCriteria.find(c => c.criteriaId === criteriaId);
+            if (criteria) {
+                document.getElementById('deleteCriteriaName').textContent = criteria.criteriaName;
+                confirmDeleteModal.show();
+            }
+        }
+        
+        // Save new criteria
+        async function saveNewCriteria() {
+            // Validate form
+            const criteriaNameInput = document.getElementById('criteriaName');
+            const categoryInput = document.getElementById('category');
+            const descriptionInput = document.getElementById('description');
+            const defaultMaxScoreInput = document.getElementById('defaultMaxScore');
+            
+            if (!criteriaNameInput.value || !categoryInput.value || !descriptionInput.value) {
+                alert('Vui lòng điền đầy đủ thông tin tiêu chí!');
+                return;
+            }
+            
+            const scoreValue = parseInt(defaultMaxScoreInput.value);
+            if (isNaN(scoreValue) || scoreValue < 1 || scoreValue > 10) {
+                alert('Điểm tối đa phải nằm trong khoảng từ 1 đến 10!');
+                return;
+            }
+            
+            // Prepare data
+            const newCriteria = {
+                criteriaName: criteriaNameInput.value,
+                category: categoryInput.value,
+                description: descriptionInput.value,
+                defaultMaxScore: scoreValue
+            };
+            
+            try {
+                showLoading();
+                const response = await fetch('http://localhost:8080/api/criteria', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(newCriteria),
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save criteria');
+                }
+                
+                const result = await response.json();
+                if (result.success) {
+                    // Reset form
+                    document.getElementById('addCriteriaForm').reset();
+                    
+                    // Close modal
+                    addCriteriaModal.hide();
+                    
+                    // Reload criteria list
+                    await loadAllCriteria();
+                    
+                    // Show success message
+                    showMessage('success', 'Tiêu chí đã được thêm thành công!');
+                } else {
+                    showMessage('warning', result.message || 'Không thể thêm tiêu chí');
+                }
+            } catch (error) {
+                console.error('Error saving criteria:', error);
+                showMessage('danger', 'Lỗi khi thêm tiêu chí: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Update existing criteria
+        async function updateCriteria() {
+            // Validate form
+            const criteriaIdInput = document.getElementById('editCriteriaId');
+            const criteriaNameInput = document.getElementById('editCriteriaName');
+            const categoryInput = document.getElementById('editCategory');
+            const descriptionInput = document.getElementById('editDescription');
+            const defaultMaxScoreInput = document.getElementById('editDefaultMaxScore');
+            const isActiveInput = document.getElementById('editIsActive');
+            
+            if (!criteriaNameInput.value || !categoryInput.value || !descriptionInput.value) {
+                alert('Vui lòng điền đầy đủ thông tin tiêu chí!');
+                return;
+            }
+            
+            const scoreValue = parseInt(defaultMaxScoreInput.value);
+            if (isNaN(scoreValue) || scoreValue < 1 || scoreValue > 10) {
+                alert('Điểm tối đa phải nằm trong khoảng từ 1 đến 10!');
+                return;
+            }
+            
+            // Prepare data
+            const updatedCriteria = {
+                criteriaName: criteriaNameInput.value,
+                category: categoryInput.value,
+                description: descriptionInput.value,
+                defaultMaxScore: scoreValue,
+                isActive: isActiveInput.checked
+            };
+            
+            try {
+                showLoading();
+                const criteriaId = criteriaIdInput.value;
+                const response = await fetch(`http://localhost:8080/api/criteria/${criteriaId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(updatedCriteria),
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to update criteria');
+                }
+                
+                const result = await response.json();
+                if (result.success) {
+                    // Close modal
+                    editCriteriaModal.hide();
+                    
+                    // Reload criteria list
+                    await loadAllCriteria();
+                    
+                    // Show success message
+                    showMessage('success', 'Tiêu chí đã được cập nhật thành công!');
+                } else {
+                    showMessage('warning', result.message || 'Không thể cập nhật tiêu chí');
+                }
+            } catch (error) {
+                console.error('Error updating criteria:', error);
+                showMessage('danger', 'Lỗi khi cập nhật tiêu chí: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Delete criteria
+        async function deleteCriteria() {
+            if (!criteriaToDelete) {
+                confirmDeleteModal.hide();
+                return;
+            }
+            
+            try {
+                showLoading();
+                const response = await fetch(`http://localhost:8080/api/criteria/${criteriaToDelete}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to delete criteria');
+                }
+                
+                const result = await response.json();
+                if (result.success) {
+                    // Close modal
+                    confirmDeleteModal.hide();
+                    
+                    // Reset criteriaToDelete
+                    criteriaToDelete = null;
+                    
+                    // Reload criteria list
+                    await loadAllCriteria();
+                    
+                    // Show success message
+                    showMessage('success', 'Tiêu chí đã được xóa thành công!');
+                } else {
+                    showMessage('warning', result.message || 'Không thể xóa tiêu chí');
+                }
+            } catch (error) {
+                console.error('Error deleting criteria:', error);
+                showMessage('danger', 'Lỗi khi xóa tiêu chí: ' + error.message);
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Show message function (using Bootstrap alert)
+        function showMessage(type, message) {
+            // Create alert element
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+            alertDiv.setAttribute('role', 'alert');
+            alertDiv.style.zIndex = '9999';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            
+            // Add to document
+            document.body.appendChild(alertDiv);
+            
+            // Auto dismiss after 5 seconds
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alertDiv);
+                bsAlert.close();
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

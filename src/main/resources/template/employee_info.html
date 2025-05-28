@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thông Tin Nhân Viên</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css"
+    />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      body {
+        background-color: #f8f9fa;
+      }
+      .card {
+        border-radius: 15px;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      .card-header {
+        border-top-left-radius: 15px;
+        border-top-right-radius: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .btn-danger,
+      .btn-primary,
+      .btn-success {
+        transition: 0.3s;
+      }
+      .btn-danger:hover {
+        background-color: #c82333;
+      }
+      .btn-primary:hover {
+        background-color: #0056b3;
+      }
+      .btn-success:hover {
+        background-color: #218838;
+      }
+    </style>
+    <!-- Add SheetJS library for Excel export -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <div class="container mt-5">
+      <div class="card">
+        <div class="card-header bg-dark text-white text-center">
+          <h4><i class="bi bi-person-badge"></i> Thông Tin Nhân Viên</h4>
+        </div>
+        <div class="card-body">
+          <h5 id="fullname"><i class="bi bi-person-fill"></i> Họ và Tên: </h5>
+          <p id="username"><i class="bi bi-person"></i> Username: </p>
+          <p id="email"><i class="bi bi-envelope"></i> Email: </p>
+          <p id="role"><i class="bi bi-briefcase-fill"></i> Chức Vụ: </p>
+          <p id="department"><i class="bi bi-building"></i> Phòng Ban: </p>
+          <p id="createdAt"><i class="bi bi-calendar-plus"></i> Ngày Tạo: </p>
+          <p id="updatedAt"><i class="bi bi-calendar-check"></i> Cập Nhật Lần Cuối: </p>
+
+          <h5 class="mt-4">
+            <i class="bi bi-clipboard-check"></i> Lịch Sử Đánh Giá
+          </h5>
+
+          <div id="reviewSections"></div>
+          <div class="text-center mt-3">
+            <button id="prevPage" class="btn btn-secondary me-2">
+              <i class="bi bi-arrow-left"></i> Trang trước
+            </button>
+            <button id="nextPage" class="btn btn-secondary">
+              <i class="bi bi-arrow-right"></i> Trang sau
+            </button>
+          </div>
+
+          <div class="text-center mt-4">
+            <button
+              class="btn btn-secondary px-4"
+              onclick="window.location.href='listEmployee.html'"
+            >
+              <i class="bi bi-arrow-left"></i> Quay Lại
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Dữ liệu đánh giá mẫu
+      const reviewData = [
+        {
+          period: "T3/2024",
+          date: "2024-03-21",
+          scores: [8, 9, 7, 8],
+          comment: "Nhân viên làm việc tốt",
+        },
+        {
+          period: "T3/2025",
+          date: "2025-03-15",
+          scores: [9, 8, 8, 9],
+          comment: "Nhân viên có sự tiến bộ",
+        },
+        {
+          period: "T4/2025",
+          date: "2025-04-10",
+          scores: [7, 8, 7, 7],
+          comment: "Cần cải thiện hiệu suất",
+        },
+        {
+          period: "T5/2025",
+          date: "2025-05-05",
+          scores: [8, 9, 8, 9],
+          comment: "Thể hiện tốt trong dự án mới",
+        },
+        {
+          period: "T6/2025",
+          date: "2025-06-12",
+          scores: [9, 9, 9, 9],
+          comment: "Xuất sắc, cần duy trì phong độ",
+        },
+        {
+          period: "T7/2025",
+          date: "2025-07-20",
+          scores: [8, 8, 8, 8],
+          comment: "Làm việc ổn định",
+        },
+        {
+          period: "T8/2025",
+          date: "2025-08-18",
+          scores: [9, 9, 10, 9],
+          comment: "Hiệu suất rất tốt",
+        },
+      ];
+
+      function createReviewCard(index, data) {
+        let avgScore = (
+          data.scores.reduce((a, b) => a + b, 0) / data.scores.length
+        ).toFixed(1);
+        let reviewId = `review${index}`;
+
+        return `
+    <div class="card" id="${reviewId}">
+      <div class="card-header bg-secondary text-white">
+        Đánh giá ${data.period} - ${data.date}
+        <div>
+          <button class="btn btn-primary btn-sm" onclick="editReview('${reviewId}')"><i class="bi bi-pencil"></i></button>
+          <button class="btn btn-success btn-sm" onclick="saveReview('${reviewId}')" disabled><i class="bi bi-save"></i></button>
+          <button class="btn btn-danger btn-sm" onclick="deleteReview('${reviewId}')"><i class="bi bi-trash"></i></button>
+        </div>
+      </div>
+      <div class="card-body">
+        <table class="table table-bordered text-center">
+          <tbody>
+            <tr><th>Kỹ Năng</th><td><input type="number" class="score form-control" value="${data.scores[0]}" disabled></td></tr>
+            <tr><th>Thái Độ</th><td><input type="number" class="score form-control" value="${data.scores[1]}" disabled></td></tr>
+            <tr><th>Hiệu Suất</th><td><input type="number" class="score form-control" value="${data.scores[2]}" disabled></td></tr>
+            <tr><th>Đóng Góp</th><td><input type="number" class="score form-control" value="${data.scores[3]}" disabled></td></tr>
+            <tr class="table-primary"><th>Điểm Trung Bình</th><td id="avgScore">${avgScore}</td></tr>
+            <tr class="table-warning"><th>Nhận Xét</th><td contenteditable="false">${data.comment}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+      }
+
+      function deleteReview(reviewId) {
+        // Xác nhận hành động xóa
+        if (confirm("Bạn có chắc chắn muốn xóa đánh giá này không?")) {
+          // Extract the index from the reviewId
+          const index = parseInt(reviewId.replace('review', '')) - 1;
+          const startIndex = (currentPage - 1) * reviewsPerPage;
+          const assessmentIndex = startIndex + index;
+          
+          if (assessmentIndex >= 0 && assessmentIndex < assessmentData.length) {
+            const assessmentToDelete = assessmentData[assessmentIndex];
+            const assessmentId = assessmentToDelete.id;
+            
+            // Call API to delete the assessment
+            fetch(`http://localhost:8080/api/assessments/${assessmentId}`, {
+              method: 'DELETE',
+              headers: {
+                'Accept': 'application/json'
+              },
+              credentials: 'include'
+            })
+            .then(response => {
+              if (!response.ok) {
+                throw new Error('Failed to delete assessment');
+              }
+              return response.json();
+            })
+            .then(result => {
+              if (result.success) {
+                // Remove from the assessmentData array
+                assessmentData.splice(assessmentIndex, 1);
+                
+                // Refresh the displayed reviews
+                displayReviews(currentPage);
+                
+                alert("Đánh giá đã được xóa thành công!");
+              } else {
+                alert("Không thể xóa đánh giá: " + (result.message || "Lỗi không xác định"));
+              }
+            })
+            .catch(error => {
+              console.error('Error:', error);
+              alert("Lỗi khi xóa đánh giá: " + error.message);
+            });
+          }
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        let reviewSections = document.getElementById("reviewSections");
+        // Hiển thị chỉ 5 đánh giá mới nhất
+        let limitedReviewData = reviewData.slice(0, 5);
+
+        limitedReviewData.forEach((review, index) => {
+          reviewSections.innerHTML += createReviewCard(index + 1, review);
+        });
+
+        let selects = document.getElementsByClassName("score");
+        for (let select of selects) {
+          for (let i = 0; i <= 10; i++) {
+            let option = document.createElement("option");
+            option.value = i;
+            option.textContent = i;
+            select.appendChild(option);
+          }
+          select.value = 8;
+        }
+
+        // Gán sự kiện thay đổi điểm để cập nhật điểm trung bình
+        document.querySelectorAll(".score").forEach((select) => {
+          select.addEventListener("change", function () {
+            let reviewId = this.closest(".card").id;
+            updateAverageScore(reviewId);
+          });
+        });
+      });
+
+      function editReview(reviewId) {
+        let reviewCard = document.getElementById(reviewId);
+        let commentCell = reviewCard.querySelector("tr.table-warning td");
+        let scoreInputs = reviewCard.querySelectorAll(".score");
+        let editBtn = reviewCard.querySelector(".btn-primary");
+        let saveBtn = reviewCard.querySelector(".btn-success");
+
+        // Bật chế độ chỉnh sửa
+        commentCell.contentEditable = "true";
+        scoreInputs.forEach((input) => {
+          input.disabled = false;
+          input.min = 0;
+          input.max = 10;
+        });
+
+        // Hiển thị nút Lưu, ẩn nút Sửa
+        editBtn.disabled = true;
+        saveBtn.disabled = false;
+      }
+
+      function saveReview(reviewId) {
+        let reviewCard = document.getElementById(reviewId);
+        let commentCell = reviewCard.querySelector("tr.table-warning td");
+        let scoreInputs = reviewCard.querySelectorAll(".score");
+        let editBtn = reviewCard.querySelector(".btn-primary");
+        let saveBtn = reviewCard.querySelector(".btn-success");
+
+        // Tắt chế độ chỉnh sửa
+        commentCell.contentEditable = "false";
+        scoreInputs.forEach((input) => (input.disabled = true));
+
+        // Cập nhật điểm trung bình mới
+        updateAverageScore(reviewId);
+
+        // Hiển thị nút Sửa, ẩn nút Lưu
+        editBtn.disabled = false;
+        saveBtn.disabled = true;
+      }
+
+      function updateAverageScore(reviewId) {
+        let reviewCard = document.getElementById(reviewId);
+        let scoreInputs = reviewCard.querySelectorAll(".score");
+        let totalScore = 0;
+        let validScores = true;
+
+        scoreInputs.forEach((input) => {
+          let score = parseInt(input.value);
+          if (score < 0 || score > 10 || isNaN(score)) {
+            validScores = false;
+          }
+          totalScore += score;
+        });
+
+        if (validScores) {
+          let avgScore = (totalScore / scoreInputs.length).toFixed(1);
+          reviewCard.querySelector("#avgScore").textContent = avgScore;
+        } else {
+          alert("Điểm số phải nằm trong khoảng từ 0 đến 10!");
+        }
+      }
+
+      // Format date function
+      function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        return date.toLocaleString('vi-VN', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+      }
+
+      // Global assessment data
+      let assessmentData = [];
+      const reviewsPerPage = 3; // Số đánh giá mỗi trang
+      let currentPage = 1;
+
+      // Load user data function
+      async function loadUserData(userId) {
+        try {
+          const response = await fetch(`http://localhost:8080/api/users/${userId}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to load user data');
+          }
+
+          const result = await response.json();
+          if (result.success && result.data) {
+            const user = result.data;
+            
+            // Update user information in the DOM
+            document.getElementById("fullname").innerHTML = 
+              `<i class="bi bi-person-fill"></i> Họ và Tên: ${user.fullName}`;
+            document.getElementById("username").innerHTML = 
+              `<i class="bi bi-person"></i> Username: ${user.username}`;
+            document.getElementById("email").innerHTML = 
+              `<i class="bi bi-envelope"></i> Email: ${user.email}`;
+            document.getElementById("role").innerHTML = 
+              `<i class="bi bi-briefcase-fill"></i> Chức Vụ: ${user.role}`;
+            document.getElementById("department").innerHTML = 
+              `<i class="bi bi-building"></i> Phòng Ban: ${user.department.departmentName}`;
+            document.getElementById("createdAt").innerHTML = 
+              `<i class="bi bi-calendar-plus"></i> Ngày Tạo: ${formatDate(user.createdAt)}`;
+            document.getElementById("updatedAt").innerHTML = 
+              `<i class="bi bi-calendar-check"></i> Cập Nhật Lần Cuối: ${formatDate(user.updatedAt)}`;
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Không thể tải thông tin người dùng');
+        }
+      }
+
+      // Load assessment history for a user
+      async function loadAssessmentHistory(userId) {
+        try {
+          const response = await fetch(`http://localhost:8080/api/assessments/results/employee/${userId}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to load assessment history');
+          }
+
+          const result = await response.json();
+          if (result.success && result.data) {
+            assessmentData = result.data;
+            displayReviews(1);
+          }
+        } catch (error) {
+          console.error('Error loading assessment history:', error);
+          alert('Không thể tải lịch sử đánh giá');
+        }
+      }
+
+      function createReviewCard(index, assessment) {
+        // Get the date and format for display
+        const submissionDate = formatDate(assessment.submissionDate);
+        const period = assessment.assessmentId; // Use the assessment period if available
+        
+        let reviewId = `review${index}`;
+
+        // Create the table rows for criteria results
+        let criteriaRows = '';
+        if (assessment.criteriaResults && assessment.criteriaResults.length > 0) {
+          assessment.criteriaResults.forEach(criteria => {
+            criteriaRows += `
+              <tr>
+                <th>${criteria.criteriaName}</th>
+                <td>
+                  <input type="number" class="score form-control" 
+                    value="${criteria.score}" disabled title="${criteria.criteriaDescription}">
+                </td>
+              </tr>
+            `;
+          });
+        } else {
+          criteriaRows = '<tr><td colspan="2" class="text-center">Không có dữ liệu tiêu chí</td></tr>';
+        }
+
+        return `
+          <div class="card" id="${reviewId}">
+            <div class="card-header bg-secondary text-white">
+              Đánh giá #${assessment.assessmentId} - ${submissionDate}
+              <div>
+                <button class="btn btn-primary btn-sm" onclick="editReview('${reviewId}')"><i class="bi bi-pencil"></i></button>
+                <button class="btn btn-success btn-sm" onclick="saveReview('${reviewId}')" disabled><i class="bi bi-save"></i></button>
+                <button class="btn btn-danger btn-sm" onclick="deleteReview('${reviewId}')"><i class="bi bi-trash"></i></button>
+                <button class="btn btn-info btn-sm" onclick="exportToExcel(${index-1})"><i class="bi bi-file-earmark-excel"></i></button>
+              </div>
+            </div>
+            <div class="card-body">
+              <table class="table table-bordered text-center">
+                <tbody>
+                  ${criteriaRows}
+                  <tr class="table-primary"><th>Điểm Trung Bình</th><td id="avgScore">${assessment.totalScore.toFixed(1)}</td></tr>
+                  <tr class="table-warning"><th>Nhận Xét</th><td contenteditable="false">${assessment.overallComment || 'Không có nhận xét'}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      function displayReviews(page) {
+        let reviewSections = document.getElementById("reviewSections");
+        reviewSections.innerHTML = ""; // Xóa nội dung cũ
+
+        // Kiểm tra nếu không có dữ liệu
+        if (!assessmentData || assessmentData.length === 0) {
+          reviewSections.innerHTML = '<div class="alert alert-info">Chưa có đánh giá nào cho nhân viên này.</div>';
+          document.getElementById("prevPage").disabled = true;
+          document.getElementById("nextPage").disabled = true;
+          return;
+        }
+
+        let startIndex = (page - 1) * reviewsPerPage;
+        let endIndex = startIndex + reviewsPerPage;
+        let visibleAssessments = assessmentData.slice(startIndex, endIndex);
+
+        visibleAssessments.forEach((assessment, index) => {
+          reviewSections.innerHTML += createReviewCard(
+            startIndex + index + 1,
+            assessment
+          );
+        });
+
+        updatePaginationButtons();
+      }
+
+      function updatePaginationButtons() {
+        document.getElementById("prevPage").disabled = currentPage === 1;
+        document.getElementById("nextPage").disabled =
+          currentPage * reviewsPerPage >= assessmentData.length;
+      }
+
+      // Chuyển trang trước
+      document
+        .getElementById("prevPage")
+        .addEventListener("click", function () {
+          if (currentPage > 1) {
+            currentPage--;
+            displayReviews(currentPage);
+          }
+        });
+
+      // Chuyển trang sau
+      document
+        .getElementById("nextPage")
+        .addEventListener("click", function () {
+          if (currentPage * reviewsPerPage < assessmentData.length) {
+            currentPage++;
+            displayReviews(currentPage);
+          }
+        });
+
+      // Initialize page
+      document.addEventListener('DOMContentLoaded', async function() {
+        // Get user ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userId');
+        
+        if (userId) {
+          await loadUserData(userId);
+          await loadAssessmentHistory(userId);
+        } else {
+          alert('Không tìm thấy ID người dùng');
+          window.location.href = 'listEmployee.html';
+        }
+      });
+
+      // Export assessment to Excel
+      function exportToExcel(assessmentIndex) {
+        try {
+          const assessment = assessmentData[assessmentIndex];
+          if (!assessment) {
+            alert('Không thể tìm thấy dữ liệu đánh giá để xuất!');
+            return;
+          }
+          
+          // Create worksheet data
+          const employeeName = document.getElementById('fullname').textContent.replace('Họ và Tên: ', '');
+          const departmentName = document.getElementById('department').textContent.replace('Phòng Ban: ', '');
+          
+          // Create header rows
+          const wsData = [
+            ['PHIẾU ĐÁNH GIÁ NHÂN VIÊN'],
+            [''],
+            ['Nhân viên:', employeeName],
+            ['Phòng ban:', departmentName],
+            ['Ngày đánh giá:', formatDate(assessment.submissionDate)],
+            ['ID đánh giá:', assessment.assessmentId.toString()],
+            [''],
+            ['TIÊU CHÍ ĐÁNH GIÁ', 'ĐIỂM', 'MÔ TẢ']
+          ];
+          
+          // Add criteria rows
+          if (assessment.criteriaResults && assessment.criteriaResults.length > 0) {
+            assessment.criteriaResults.forEach(criteria => {
+              wsData.push([
+                criteria.criteriaName,
+                criteria.score.toString(),
+                criteria.criteriaDescription
+              ]);
+            });
+          }
+          
+          // Add summary rows
+          wsData.push(
+            [''],
+            ['ĐIỂM TRUNG BÌNH', assessment.totalScore.toFixed(1), ''],
+            ['NHẬN XÉT', assessment.overallComment || 'Không có nhận xét', '']
+          );
+          
+          // Create workbook and add worksheet
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.aoa_to_sheet(wsData);
+          
+          // Set column widths and styles
+          const colWidths = [{ wch: 30 }, { wch: 10 }, { wch: 50 }];
+          ws['!cols'] = colWidths;
+          
+          // Add worksheet to workbook
+          XLSX.utils.book_append_sheet(wb, ws, 'Đánh giá');
+          
+          // Generate file name
+          const fileName = `Đánh_giá_${employeeName.replace(/\s+/g, '_')}_${new Date(assessment.submissionDate).toISOString().split('T')[0]}.xlsx`;
+          
+          // Export workbook
+          XLSX.writeFile(wb, fileName);
+          
+        } catch (error) {
+          console.error('Error exporting to Excel:', error);
+          alert('Có lỗi khi xuất file Excel: ' + error.message);
+        }
+      }
+    </script>
+  </body>
+</html>

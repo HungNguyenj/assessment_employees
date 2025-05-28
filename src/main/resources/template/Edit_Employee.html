@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chỉnh Sửa Nhân Viên</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div class="container mt-5">
+      <div class="card">
+        <div class="card-header bg-primary text-white text-center">
+          <h4>Chỉnh Sửa Nhân Viên</h4>
+        </div>
+        <div class="card-body">
+          <form id="editEmployeeForm">
+            <div class="mb-3">
+              <label class="form-label">Tên đăng nhập</label>
+              <input type="text" id="username" class="form-control" readonly />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" id="email" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Họ và Tên</label>
+              <input type="text" id="fullName" class="form-control" required />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Mật khẩu mới (để trống nếu không đổi)</label>
+              <input type="password" id="password" class="form-control" />
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Chức vụ</label>
+              <select id="role" class="form-select" required>
+                <option value="ADMIN">Admin</option>
+                <option value="SUPERVISOR">Supervisor</option>
+                <option value="EMPLOYEE">Employee</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Phòng Ban</label>
+              <select id="departmentId" class="form-select" required>
+                <option value="" selected>Chọn phòng ban</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-success me-2">Lưu Thay Đổi</button>
+            <button type="button" class="btn btn-secondary" id="cancelButton">Hủy</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal Thông báo -->
+    <div class="modal fade" id="successModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Thành Công</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body">
+            <p>Thông tin nhân viên đã được cập nhật thành công!</p>
+          </div>
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-primary"
+              data-bs-dismiss="modal"
+              onclick="window.location.href='listEmployee.html'"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let userId = null;
+
+      // Load departments
+      async function loadDepartments() {
+        try {
+          const response = await fetch('http://localhost:8080/api/departments', {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to load departments');
+          }
+
+          let departments = await response.json();
+          departments = departments.data
+
+          const departmentSelect = document.getElementById('departmentId');
+          
+          // Clear existing options except the first one
+          departmentSelect.innerHTML = '<option value="" selected>Chọn phòng ban</option>';
+          
+          departments.forEach(dept => {
+            const option = document.createElement('option');
+            option.value = dept.departmentId;
+            option.textContent = dept.departmentName;
+            departmentSelect.appendChild(option);
+          });
+        } catch (error) {
+          console.error('Error loading departments:', error);
+          alert('Không thể tải danh sách phòng ban');
+        }
+      }
+
+      // Load user data
+      async function loadUserData(userId) {
+        try {
+          const response = await fetch(`http://localhost:8080/api/users/${userId}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to load user data');
+          }
+
+          const result = await response.json();
+          if (result.success && result.data) {
+            const user = result.data;
+            document.getElementById('username').value = user.username;
+            document.getElementById('email').value = user.email;
+            document.getElementById('fullName').value = user.fullName;
+            document.getElementById('role').value = user.role;
+            document.getElementById('departmentId').value = user.department.departmentId;
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          alert('Không thể tải thông tin người dùng');
+        }
+      }
+
+      // Handle form submission
+      document.getElementById('editEmployeeForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const formData = {
+          username: document.getElementById('username').value,
+          email: document.getElementById('email').value,
+          fullName: document.getElementById('fullName').value,
+          departmentId: parseInt(document.getElementById('departmentId').value),
+          role: document.getElementById('role').value
+        };
+
+        // Only include password if it's not empty
+        const password = document.getElementById('password').value;
+        if (password) {
+          formData.password = password;
+        }
+
+        try {
+          const response = await fetch(`http://localhost:8080/api/users/${userId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify(formData)
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Failed to update user');
+          }
+
+          alert('Cập nhật thông tin thành công!');
+          window.location.href = 'listEmployee.html';
+        } catch (error) {
+          console.error('Error:', error);
+          alert(error.message || 'Lỗi khi cập nhật thông tin');
+        }
+      });
+
+      // Handle cancel button
+      document.getElementById('cancelButton').addEventListener('click', function() {
+        if (confirm('Bạn có chắc chắn muốn hủy không?')) {
+          window.location.href = 'listEmployee.html';
+        }
+      });
+
+      // Initialize page
+      document.addEventListener('DOMContentLoaded', async function() {
+        await loadDepartments();
+        
+        // Get user ID from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        userId = urlParams.get('userId');
+        
+        if (userId) {
+          await loadUserData(userId);
+        } else {
+          alert('Không tìm thấy ID người dùng');
+          window.location.href = 'listEmployee.html';
+        }
+      });
+    </script>
+  </body>
+</html>
