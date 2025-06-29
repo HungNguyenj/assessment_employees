@@ -52,7 +52,15 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
-    private UserRole role = UserRole.EMPLOYEE;
+    private UserRole role = UserRole.EMPL;
+
+    // Trường để xác định user này có phải là manager của department không
+    @Column(name = "is_department_manager")
+    private Boolean isDepartmentManager = false;
+
+    // Mật khẩu cho authentication
+    @Column(name = "password")
+    private String password;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -61,4 +69,4 @@ public class User {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-} 
+}

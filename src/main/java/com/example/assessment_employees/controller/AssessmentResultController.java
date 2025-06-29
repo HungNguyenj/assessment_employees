@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/assessments")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class AssessmentResultController {
 
     @Autowired
