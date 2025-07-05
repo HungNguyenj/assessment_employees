@@ -21,5 +21,5 @@ public class UserRequest {
     @NotNull(message = "Department ID cannot be null")
     private Integer departmentId;
     
-    private UserRole role = UserRole.EMPLOYEE;
+    private UserRole role;
 } 

@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/criteria")
 @RequiredArgsConstructor
+@CrossOrigin(origins = "*")
 public class CriteriaBankController {
     private final CriteriaBankService criteriaService;
 

@@ -3,6 +3,7 @@ package com.example.assessment_employees.service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +15,7 @@ import com.example.assessment_employees.exception.ResourceNotFoundException;
 import com.example.assessment_employees.mapper.UserMapper;
 import com.example.assessment_employees.repository.DepartmentRepository;
 import com.example.assessment_employees.repository.UserRepository;
+import com.example.assessment_employees.security.AuthorizationService;
 
 import jakarta.persistence.EntityExistsException;
 import lombok.RequiredArgsConstructor;
@@ -24,9 +26,19 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final DepartmentRepository departmentRepository;
+    
+    @Autowired
+    private AuthorizationService authorizationService;
 
     public List<UserResponse> getAllUsers() {
         return userRepository.findAll().stream()
+                .map(userMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+    
+    public List<UserResponse> getAccessibleUsers() {
+        List<User> accessibleUsers = authorizationService.getAccessibleUsers();
+        return accessibleUsers.stream()
                 .map(userMapper::toResponse)
                 .collect(Collectors.toList());
     }
@@ -96,4 +108,4 @@ public class UserService {
     }
 
 
-} 
+}
