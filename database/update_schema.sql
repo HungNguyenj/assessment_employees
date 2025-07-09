@@ -10,7 +10,7 @@ ALTER TABLE `users`
 MODIFY COLUMN `role` ENUM('EMPL','MANA','SUP') DEFAULT 'EMPL';
 
 INSERT INTO employee_assessment.departments (department_id,department_name,description)
-VALUES (3,'SUP','Phòng vận hành')
+VALUES (3,'SUP','Phòng vận hành');
 
 -- Cập nhật user hiện tại
 UPDATE `users` SET 
