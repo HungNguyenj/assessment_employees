@@ -42,10 +42,10 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                .requestMatchers("/api/users/**").hasAnyRole("EMPL", "MANA", "SUP")
-                .requestMatchers("/api/departments/**").hasAnyRole("MANA", "SUP")
-                .requestMatchers("/api/assessment-templates/**").hasAnyRole("MANA", "SUP")
-                .requestMatchers("/api/criteria-bank/**").hasAnyRole("MANA", "SUP")
+                .requestMatchers("/api/users/**").hasAnyRole("EMPLOYEE", "MANAGER", "SUPERVISOR")
+                .requestMatchers("/api/departments/**").hasAnyRole("MANAGER", "SUPERVISOR")
+                .requestMatchers("/api/assessment-templates/**").hasAnyRole("MANAGER", "SUPERVISOR")
+                .requestMatchers("/api/criteria-bank/**").hasAnyRole("MANAGER", "SUPERVISOR")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
