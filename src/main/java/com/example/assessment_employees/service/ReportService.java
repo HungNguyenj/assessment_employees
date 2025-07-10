@@ -15,6 +15,7 @@ import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,10 +61,10 @@ public class ReportService {
             BigDecimal averageScore = calculateAverageScore(results);
             String rating = ratingEmployee(averageScore);
             groupReports.add(UserReportResponse.builder()
-                            .employeeName(user.getFullName())
-                            .averageScore(averageScore.doubleValue())
-                            .totalAssessments(results.size())
-                            .rating(rating)
+                    .employeeName(user.getFullName())
+                    .averageScore(averageScore.doubleValue())
+                    .totalAssessments(results.size())
+                    .rating(rating)
                     .build());
         }
         return groupReports;
@@ -89,13 +90,42 @@ public class ReportService {
                 .build();
     }
 
+    public List<UserReportResponse> generateReportByTemplate(Integer templateId) {
+        List<User> allUsers = userRepository.findAll();
+        List<UserReportResponse> reports = new ArrayList<>();
+
+        for (User user : allUsers) {
+            List<AssessmentResult> results = assessmentResultRepository
+                    .findByAssessedUser_UserIdAndTemplate_TemplateId(user.getUserId(), templateId);
+
+            if (results.isEmpty()) continue;
+
+            BigDecimal avgScore = calculateAverageScore(results);
+            String rating = ratingEmployee(avgScore);
+
+            reports.add(UserReportResponse.builder()
+                    .employeeName(user.getFullName())
+                    .averageScore(avgScore.doubleValue())
+                    .totalAssessments(results.size())
+                    .rating(rating)
+                    .build());
+        }
+
+        return reports;
+    }
+
+
     private BigDecimal calculateAverageScore(List<AssessmentResult> results) {
+        if (results == null || results.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
         BigDecimal total = BigDecimal.ZERO;
         for (AssessmentResult result : results) {
             total = total.add(result.getTotalScore());
         }
-        return total.divide(BigDecimal.valueOf(results.size()));
+        return total.divide(BigDecimal.valueOf(results.size()), 2, RoundingMode.HALF_UP);
     }
+
 
     private String ratingEmployee(BigDecimal averageScore) {
         double score = averageScore.doubleValue();
@@ -121,4 +151,48 @@ public class ReportService {
             return "Poor";
         }
     }
+    public List<UserReportResponse> generateEvaluationReport(Integer departmentId, Integer templateId) {
+        List<User> users;
+
+        if (departmentId != null) {
+            users = userRepository.findByDepartment_DepartmentId(departmentId);
+        } else {
+            users = userRepository.findAll();
+        }
+
+        List<UserReportResponse> reports = new ArrayList<>();
+
+        for (User user : users) {
+            List<AssessmentResult> results = assessmentResultRepository
+                    .findByAssessedUser_UserId(user.getUserId());
+
+            // Nếu lọc theo templateId → chỉ giữ kết quả có template tương ứng
+            if (templateId != null) {
+                results = results.stream()
+                        .filter(r -> r.getTemplate().getTemplateId().equals(templateId))
+                        .toList();
+            }
+
+            if (results.isEmpty()) {
+                // Nếu không có bài đánh giá nào → thêm thông tin mặc định
+                reports.add(UserReportResponse.builder()
+                        .employeeName(user.getFullName())
+                        .averageScore(0.0)
+                        .totalAssessments(0)
+                        .rating("Chưa có đánh giá")
+                        .build());
+            } else {
+                BigDecimal avgScore = calculateAverageScore(results);
+                reports.add(UserReportResponse.builder()
+                        .employeeName(user.getFullName())
+                        .averageScore(avgScore.doubleValue())
+                        .totalAssessments(results.size())
+                        .rating(ratingEmployee(avgScore))
+                        .build());
+            }
+        }
+
+        return reports;
+    }
+
 }

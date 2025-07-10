@@ -39,7 +39,7 @@ public class DepartmentService {
         User currentUser = authorizationService.getCurrentUser();
         
         // SUP có thể xem tất cả departments
-        if (currentUser.getRole() == UserRole.SUP) {
+        if (currentUser.getRole() == UserRole.SUPERVISOR) {
             return getAllDepartments();
         }
         
@@ -51,5 +51,4 @@ public class DepartmentService {
         
         return Arrays.asList();
     }
-
 }

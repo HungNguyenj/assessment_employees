@@ -2,9 +2,18 @@ package com.example.assessment_employees.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
+import com.example.assessment_employees.dto.request.AssessmentResultRequest;
+import com.example.assessment_employees.dto.request.UpdateAssessmentRequest;
+import com.example.assessment_employees.mapper.AssessmentResultMapper;
+import com.example.assessment_employees.repository.*;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +31,6 @@ import com.example.assessment_employees.entity.CriteriaBank;
 import com.example.assessment_employees.entity.TemplateCriteriaMapping;
 import com.example.assessment_employees.entity.User;
 import com.example.assessment_employees.exception.ResourceNotFoundException;
-import com.example.assessment_employees.repository.AssessmentResultDetailRepository;
-import com.example.assessment_employees.repository.AssessmentResultRepository;
-import com.example.assessment_employees.repository.AssessmentTemplateRepository;
-import com.example.assessment_employees.repository.CriteriaBankRepository;
-import com.example.assessment_employees.repository.TemplateCriteriaMappingRepository;
-import com.example.assessment_employees.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -40,6 +43,23 @@ public class AssessmentResultService {
     private final AssessmentTemplateRepository templateRepository;
     private final CriteriaBankRepository criteriaBankRepository;
     private final TemplateCriteriaMappingRepository templateCriteriaMappingRepository;
+    @Autowired
+    private SentimentService sentimentService;
+    @Autowired
+    private AssessmentResultMapper assessmentResultMapper;
+
+    public AssessmentResult saveAssessment(AssessmentResult result) {
+        if (result.getComment() != null && !result.getComment().isEmpty()) {
+            SentimentResponse sentiment = sentimentService.analyzeComment(result.getComment());
+
+            if (sentiment != null) {
+                result.setSentimentLabel(sentiment.getLabel());
+                result.setSentimentScore(sentiment.getScore());
+            }
+        }
+
+        return assessmentResultRepository.save(result);
+    }
 
 
     @Transactional
@@ -47,13 +67,13 @@ public class AssessmentResultService {
         // Validate user and template
         User assessedUser = userRepository.findById(request.getAssessedUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Assessed user not found with ID: " + request.getAssessedUserId()));
-        
+
         User assessorUser = userRepository.findById(request.getAssessorUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("Assessor user not found with ID: " + request.getAssessorUserId()));
-        
+
         AssessmentTemplate template = templateRepository.findById(request.getTemplateId())
                 .orElseThrow(() -> new ResourceNotFoundException("Template not found with ID: " + request.getTemplateId()));
-        
+
         // Create assessment result
         AssessmentResult result = new AssessmentResult();
         result.setAssessedUser(assessedUser);
@@ -62,31 +82,31 @@ public class AssessmentResultService {
         result.setAssessmentPeriod(request.getAssessmentPeriod());
         result.setComment(request.getComment());
         result.setStatus(AssessmentStatus.SUBMITTED); // Set status to SUBMITTED
-        
+
         // Calculate total score
         BigDecimal totalScore = calculateTotalScore(request.getDetails(), template.getTemplateId());
         result.setTotalScore(totalScore);
-        
+
         // Save the result
-        result = assessmentResultRepository.save(result);
-        
+        result = saveAssessment(result);
+
         // Create and save assessment details
         List<AssessmentResultDetail> details = new ArrayList<>();
         List<AssessmentDetailResponse> detailResponses = new ArrayList<>();
-        
+
         for (AssessmentDetailRequest detailRequest : request.getDetails()) {
             CriteriaBank criteria = criteriaBankRepository.findById(detailRequest.getCriteriaId())
                     .orElseThrow(() -> new ResourceNotFoundException("Criteria not found with ID: " + detailRequest.getCriteriaId()));
-            
+
             AssessmentResultDetail detail = new AssessmentResultDetail();
             detail.setResult(result);
             detail.setCriteria(criteria);
             detail.setScore(detailRequest.getScore());
             detail.setComments(detailRequest.getComments());
-            
+
             detail = resultDetailRepository.save(detail);
             details.add(detail);
-            
+
             detailResponses.add(AssessmentDetailResponse.builder()
                     .detailId(detail.getDetailId())
                     .criteriaId(criteria.getCriteriaId())
@@ -95,7 +115,7 @@ public class AssessmentResultService {
                     .comments(detail.getComments())
                     .build());
         }
-        
+
         // Build response
         return AssessmentResultResponse.builder()
                 .resultId(result.getResultId())
@@ -109,40 +129,42 @@ public class AssessmentResultService {
                 .totalScore(result.getTotalScore())
                 .status(result.getStatus())
                 .comment(result.getComment())
+                .sentimentLabel(result.getSentimentLabel())   // 👈
+                .sentimentScore(result.getSentimentScore())   // 👈
                 .createdAt(result.getCreatedAt())
                 .updatedAt(result.getUpdatedAt())
                 .details(detailResponses)
                 .build();
     }
-    
+
     private BigDecimal calculateTotalScore(List<AssessmentDetailRequest> details, Integer templateId) {
         if (details == null || details.isEmpty()) {
             return BigDecimal.ZERO;
         }
-        
+
         BigDecimal totalPoints = BigDecimal.ZERO;
         BigDecimal maxPossiblePoints = BigDecimal.ZERO;
-        
+
         // Get all template-criteria mappings for this template
         List<TemplateCriteriaMapping> mappings = templateCriteriaMappingRepository.findByTemplate_TemplateId(templateId);
-        
+
         // Create a map for quick lookups
         java.util.Map<Integer, Integer> criteriaMaxScores = mappings.stream()
                 .collect(java.util.stream.Collectors.toMap(
                         mapping -> mapping.getCriteria().getCriteriaId(),
                         TemplateCriteriaMapping::getMaxScore
                 ));
-        
+
         for (AssessmentDetailRequest detail : details) {
             Integer criteriaId = detail.getCriteriaId();
             Integer maxScore = criteriaMaxScores.get(criteriaId);
-            
+
             if (maxScore != null) {
                 totalPoints = totalPoints.add(BigDecimal.valueOf(detail.getScore()));
                 maxPossiblePoints = maxPossiblePoints.add(BigDecimal.valueOf(maxScore));
             }
         }
-        
+
         // Calculate percentage and scale to 10
         if (maxPossiblePoints.compareTo(BigDecimal.ZERO) > 0) {
             return totalPoints.multiply(BigDecimal.TEN)
@@ -156,9 +178,9 @@ public class AssessmentResultService {
         // Implementation needed
         AssessmentResult result = assessmentResultRepository.findById(assessmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assessment result not found with ID: " + assessmentId));
-        
+
         List<AssessmentResultDetail> details = resultDetailRepository.findByResult_ResultId(assessmentId);
-        
+
         List<CriteriaResultResponse> criteriaResults = new ArrayList<>();
         for (AssessmentResultDetail detail : details) {
             CriteriaResultResponse criteriaResult = CriteriaResultResponse.builder()
@@ -171,7 +193,7 @@ public class AssessmentResultService {
                     .build();
             criteriaResults.add(criteriaResult);
         }
-        
+
         return AssessmentResultDetailResponse.builder()
                 .id(result.getResultId())
                 .assessmentId(result.getTemplate().getTemplateId())
@@ -180,10 +202,12 @@ public class AssessmentResultService {
                 .submissionDate(result.getCreatedAt())
                 .totalScore(result.getTotalScore().doubleValue())
                 .overallComment(result.getComment())
+                .sentimentLabel(result.getSentimentLabel())
+                .sentimentScore(result.getSentimentScore() != null ? result.getSentimentScore().doubleValue() : null)
                 .criteriaResults(criteriaResults)
                 .build();
     }
-    
+
     public List<AssessmentResultDetailResponse> getEmployeeAssessmentResults(Integer employeeId) {
         // Implementation needed
         List<AssessmentResult> results = assessmentResultRepository.findByAssessedUser_UserId(employeeId);
@@ -194,8 +218,74 @@ public class AssessmentResultService {
         return resultResponses;
     }
 
-    public String deleteAssessmentResult(Integer assessmentResultId) {
-        assessmentResultRepository.deleteById(assessmentResultId);
-        return "successfully";
+    @Transactional
+    public String deleteAssessmentResult(Integer resultId) {
+        assessmentResultRepository.deleteById(resultId);
+        return "Assessment result deleted successfully";
     }
+
+    @Transactional
+    public int updateAllCommentsWithSentiment() {
+        List<AssessmentResult> allResults = assessmentResultRepository.findAll();
+        int updatedCount = 0;
+
+        for (AssessmentResult result : allResults) {
+            String comment = result.getComment();
+            if (comment != null && !comment.trim().isEmpty()) {
+                SentimentResponse sentiment = sentimentService.analyzeComment(comment);
+                if (sentiment != null) {
+                    result.setSentimentLabel(sentiment.getLabel());
+                    result.setSentimentScore(sentiment.getScore());
+                    updatedCount++;
+                }
+            }
+        }
+
+        // Cập nhật tất cả cùng lúc
+        assessmentResultRepository.saveAll(allResults);
+        return updatedCount;
+    }
+
+    @Transactional
+    public AssessmentResultDetailResponse updateAssessmentResult(UpdateAssessmentRequest request) {
+        AssessmentResult existing = assessmentResultRepository.findById(request.getResultId())
+                .orElseThrow(() -> new RuntimeException("Không tìm thấy bài đánh giá: " + request.getResultId()));
+
+        // Cập nhật nhận xét
+        existing.setComment(request.getComment());
+        existing.setStatus(AssessmentStatus.SUBMITTED);
+        existing.setUpdatedAt(LocalDateTime.now());
+
+        // Xoá detail cũ
+        resultDetailRepository.deleteById(existing.getResultId());
+
+        // Tạo lại chi tiết
+        List<AssessmentResultDetail> details = request.getDetails().stream().map(d -> {
+            AssessmentResultDetail detail = new AssessmentResultDetail();
+            detail.setResult(existing);
+            detail.setCriteria(criteriaBankRepository.findById(d.getCriteriaId())
+                    .orElseThrow(() -> new RuntimeException("Không tìm thấy tiêu chí với ID: " + d.getCriteriaId())));
+            detail.setScore((d.getScore().intValue()));
+            return detail;
+        }).toList();
+
+        resultDetailRepository.saveAll(details);
+
+        // Tính điểm trung bình
+
+        existing.setTotalScore(request.getTotalScore());
+
+        // Gọi phân tích cảm xúc
+        SentimentResponse sentiment = sentimentService.analyzeComment(existing.getComment());
+        existing.setSentimentLabel(sentiment.getLabel());
+        existing.setSentimentScore(sentiment.getScore());
+
+        // Lưu lại
+        AssessmentResult saved = assessmentResultRepository.save(existing);
+
+        // Trả lại chi tiết để hiển thị đúng trên giao diện
+        return getAssessmentResultDetail(saved.getResultId());
+    }
+
+
 }
