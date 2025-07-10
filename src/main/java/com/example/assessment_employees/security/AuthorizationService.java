@@ -43,17 +43,17 @@ public class AuthorizationService {
         }
 
         // SUP có quyền truy cập tất cả
-        if (currentUser.getRole() == UserRole.SUP) {
+        if (currentUser.getRole() == UserRole.SUPERVISOR) {
             return true;
         }
 
         // EMPL chỉ được truy cập thông tin của chính mình
-        if (currentUser.getRole() == UserRole.EMPL) {
+        if (currentUser.getRole() == UserRole.EMPLOYEE) {
             return currentUser.getUserId().equals(targetUserId);
         }
 
         // MANA được truy cập nhân viên trong phòng ban mình quản lý
-        if (currentUser.getRole() == UserRole.MANA && currentUser.getIsDepartmentManager()) {
+        if (currentUser.getRole() == UserRole.MANAGER && currentUser.getIsDepartmentManager()) {
             Optional<User> targetUser = userRepository.findById(targetUserId);
             if (targetUser.isPresent()) {
                 return currentUser.getDepartment().getDepartmentId()
@@ -74,17 +74,17 @@ public class AuthorizationService {
         }
 
         // SUP có quyền xem tất cả
-        if (currentUser.getRole() == UserRole.SUP) {
+        if (currentUser.getRole() == UserRole.SUPERVISOR) {
             return userRepository.findAll();
         }
 
         // EMPL chỉ xem được thông tin của mình
-        if (currentUser.getRole() == UserRole.EMPL) {
+        if (currentUser.getRole() == UserRole.EMPLOYEE) {
             return List.of(currentUser);
         }
 
         // MANA xem được nhân viên trong phòng ban mình quản lý
-        if (currentUser.getRole() == UserRole.MANA && currentUser.getIsDepartmentManager()) {
+        if (currentUser.getRole() == UserRole.MANAGER && currentUser.getIsDepartmentManager()) {
             return userRepository.findByDepartment_DepartmentId(
                 currentUser.getDepartment().getDepartmentId());
         }
@@ -102,12 +102,12 @@ public class AuthorizationService {
         }
 
         // SUP có quyền quản lý tất cả department
-        if (currentUser.getRole() == UserRole.SUP) {
+        if (currentUser.getRole() == UserRole.SUPERVISOR) {
             return true;
         }
 
         // MANA chỉ quản lý được department của mình
-        if (currentUser.getRole() == UserRole.MANA && currentUser.getIsDepartmentManager()) {
+        if (currentUser.getRole() == UserRole.MANAGER && currentUser.getIsDepartmentManager()) {
             return currentUser.getDepartment().getDepartmentId().equals(departmentId);
         }
 
@@ -124,7 +124,7 @@ public class AuthorizationService {
         }
 
         // Chỉ MANA và SUP mới có quyền quản lý template
-        return currentUser.getRole() == UserRole.MANA || currentUser.getRole() == UserRole.SUP;
+        return currentUser.getRole() == UserRole.MANAGER || currentUser.getRole() == UserRole.SUPERVISOR;
     }
 
     /**
@@ -137,12 +137,12 @@ public class AuthorizationService {
         }
 
         // SUP có thể đánh giá tất cả
-        if (currentUser.getRole() == UserRole.SUP) {
+        if (currentUser.getRole() == UserRole.SUPERVISOR) {
             return true;
         }
 
         // MANA có thể đánh giá nhân viên trong phòng ban
-        if (currentUser.getRole() == UserRole.MANA && currentUser.getIsDepartmentManager()) {
+        if (currentUser.getRole() == UserRole.MANAGER && currentUser.getIsDepartmentManager()) {
             Optional<User> targetUser = userRepository.findById(targetUserId);
             if (targetUser.isPresent()) {
                 return currentUser.getDepartment().getDepartmentId()
