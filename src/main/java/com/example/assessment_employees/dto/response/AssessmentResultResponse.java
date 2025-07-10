@@ -6,6 +6,7 @@ import java.util.List;
 
 import com.example.assessment_employees.entity.AssessmentStatus;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -16,6 +17,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AssessmentResultResponse {
+
     private Integer resultId;
     private Integer assessedUserId;
     private String assessedUserName;
@@ -27,7 +29,12 @@ public class AssessmentResultResponse {
     private BigDecimal totalScore;
     private AssessmentStatus status;
     private String comment;
+
+    private String sentimentLabel;  // <-- mới
+    private BigDecimal sentimentScore;  // <-- mớ
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    @JsonProperty("criteriaResults")
     private List<AssessmentDetailResponse> details;
 }
