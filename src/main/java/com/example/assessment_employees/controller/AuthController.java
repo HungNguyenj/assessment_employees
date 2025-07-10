@@ -166,7 +166,7 @@ public class AuthController {
             newUser.setDepartment(departmentOpt.get());
             
             // Set role mặc định là EMPL
-            newUser.setRole(com.example.assessment_employees.entity.UserRole.EMPL);
+            newUser.setRole(com.example.assessment_employees.entity.UserRole.EMPLOYEE);
             newUser.setIsDepartmentManager(false);
             
             // Lưu user

@@ -1,7 +1,10 @@
 package com.example.assessment_employees.controller;
 
 import java.util.List;
+import java.util.Map;
 
+import com.example.assessment_employees.dto.request.AssessmentResultRequest;
+import com.example.assessment_employees.dto.request.UpdateAssessmentRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,8 +53,24 @@ public class AssessmentResultController {
         return ResponseEntity.ok(new ApiResponse<>(true, "Employee assessment results retrieved successfully", results));
     }
 
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ApiResponse<String>> deleteAssessmentResult(@PathVariable Integer id) {
-        return ResponseEntity.ok(new ApiResponse<>(true, "Assessment result deleted successfully", assessmentResultService.deleteAssessmentResult(id)));
+    @DeleteMapping("/delete/{id}")
+    public ResponseEntity<String> deleteAssessmentResult(@PathVariable Integer id) {
+        String message = assessmentResultService.deleteAssessmentResult(id);
+        return ResponseEntity.ok(message);
     }
+
+    @PutMapping("/update-comments-sentiment")
+    public ResponseEntity<String> updateAllSentimentComments() {
+        int updated = assessmentResultService.updateAllCommentsWithSentiment();
+        return ResponseEntity.ok("Đã cập nhật " + updated + " đánh giá với phân tích cảm xúc.");
+    }
+
+    // API cập nhật kết quả đánh giá (khi chỉnh sửa)
+    @PutMapping("/save")
+    public ResponseEntity<ApiResponse<AssessmentResultDetailResponse>> saveAssessment(@RequestBody UpdateAssessmentRequest request) {
+        AssessmentResultDetailResponse response = assessmentResultService.updateAssessmentResult(request);
+        return ResponseEntity.ok(new ApiResponse<>(true, "Assessment updated", response));
+    }
+
+
 }
