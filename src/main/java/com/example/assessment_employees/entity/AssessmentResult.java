@@ -47,6 +47,12 @@ public class AssessmentResult {
     @Column(name = "comment")
     private String comment;
 
+    @Column(name = "sentiment_label")
+    private String sentimentLabel; // VD: POSITIVE, NEGATIVE, NEUTRAL
+
+    @Column(name = "sentiment_score", precision = 5, scale = 4)
+    private BigDecimal sentimentScore; // VD: 0.8231
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

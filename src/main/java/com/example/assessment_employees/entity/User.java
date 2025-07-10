@@ -52,7 +52,7 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role")
-    private UserRole role = UserRole.EMPL;
+    private UserRole role = UserRole.EMPLOYEE;
 
     // Trường để xác định user này có phải là manager của department không
     @Column(name = "is_department_manager")

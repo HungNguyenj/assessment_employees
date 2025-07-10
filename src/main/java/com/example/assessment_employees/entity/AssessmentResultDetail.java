@@ -2,15 +2,15 @@ package com.example.assessment_employees.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 @Entity
 @Table(name = "assessment_result_details")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Getter
+@Setter
 public class AssessmentResultDetail {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
